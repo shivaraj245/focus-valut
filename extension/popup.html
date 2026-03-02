@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FocusVault</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🧠 FocusVault</h1>
+      <p class="tagline">Your Learning Memory</p>
+    </div>
+
+    <div class="status-card">
+      <div class="status-indicator">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">Tracking Active</span>
+      </div>
+      <button id="toggleBtn" class="btn btn-primary">Pause Tracking</button>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="todayEvents">0</div>
+        <div class="stat-label">Pages Today</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="learningTime">0m</div>
+        <div class="stat-label">Learning Time</div>
+      </div>
+    </div>
+
+    <div class="current-tab" id="currentTab">
+      <h3>Current Page</h3>
+      <p class="tab-title" id="tabTitle">No active page</p>
+      <p class="tab-domain" id="tabDomain"></p>
+      <p class="tab-duration" id="tabDuration"></p>
+    </div>
+
+    <div class="sync-status">
+      <span id="syncStatus">Last sync: Never</span>
+      <span id="queuedEvents" class="badge">0 queued</span>
+    </div>
+
+    <div class="actions">
+      <button id="settingsBtn" class="btn btn-secondary">Settings</button>
+      <button id="dashboardBtn" class="btn btn-secondary">Dashboard</button>
+    </div>
+
+    <div class="settings-panel" id="settingsPanel" style="display: none;">
+      <h3>Settings</h3>
+      <div class="form-group">
+        <label for="apiUrl">API URL:</label>
+        <input type="text" id="apiUrl" value="http://localhost:8000/api">
+      </div>
+      <div class="form-group">
+        <label for="userId">User ID:</label>
+        <input type="number" id="userId" value="1">
+      </div>
+      <button id="saveSettings" class="btn btn-primary">Save</button>
+      <button id="closeSettings" class="btn btn-secondary">Close</button>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
