@@ -1,0 +1,11 @@
+geeksforgeeks.org
+coursera.org
+youtube.com
+github.com
+linkedin.com
+twitter.com
+chess.com
+https://leetcode.com/studyplan/top-sql-50/
+https://medium.com/tag/artificial-intelligence
+https://mail.google.com/mail/u/0/?tab=rm&ogbl#inbox
+quit

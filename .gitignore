@@ -1,7 +1,8 @@
 # Python
 __pycache__/
+*.pyc
 *.py[cod]
-*$py.class
+*.class
 *.so
 .Python
 env/
@@ -11,7 +12,7 @@ build/
 develop-eggs/
 dist/
 downloads/
-eggs/
+egss/
 .eggs/
 lib/
 lib64/
@@ -27,6 +28,9 @@ wheels/
 .env
 .env.local
 .env.*.local
+*.env
+Backend/.env
+Backend/Data/.env
 
 # IDEs
 .vscode/
@@ -35,22 +39,18 @@ wheels/
 *.swo
 *~
 
-# OS
-.DS_Store
-Thumbs.db
+# Data files
+*.csv
+*.xlsx
+*.json
+*.db
+*.sqlite
 
 # Models
 models/*.pkl
 models/*.joblib
 models/*.h5
 models/*.pt
-
-# Data
-data/
-*.csv
-*.json
-*.db
-*.sqlite
 
 # Logs
 *.log
@@ -80,3 +80,8 @@ yarn-error.log*
 .coverage
 htmlcov/
 .pytest_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
