@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+
+# Environment
+*.env
+Backend/.env
+Backend/Data/.env
+
+# Data files
+*.csv
+*.xlsx
+*.json
+
+# OS
+.DS_Store
+Thumbs.db
+
