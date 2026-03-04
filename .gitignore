@@ -48,9 +48,16 @@ Backend/Data/.env
 
 # Models
 models/*.pkl
-models/*.joblib
-models/*.h5
-models/*.pt
+backend/models/*.pkl
+
+# Track these specific trained models
+!models/activity_classifier_pipeline.pkl
+!models/activity_label_encoder.pkl
+!models/label_encoder.pkl
+!models/model_metadata.pkl
+!models/kmeans_model.pkl
+!models/tfidf_vectorizer.pkl
+!models/cluster_map.json
 
 # Logs
 *.log

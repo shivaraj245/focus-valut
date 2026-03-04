@@ -16,10 +16,16 @@ class MLService:
     
     @classmethod
     async def initialize(cls):
-        models_path = Path(settings.MODELS_PATH)
+        # Support both layouts:
+        # - running backend from repo root via Docker: /app/models  (MODELS_PATH=./models)
+        # - running backend from backend/ locally:   backend/models (MODELS_PATH=./models)
+        # - running backend from backend/ but keeping models in repo root: ../models
+        configured = Path(settings.MODELS_PATH)
+        candidates = [configured, Path("../models"), Path("models"), Path("backend/models")]
+        models_path = next((p for p in candidates if p.exists()), configured)
         
         if not models_path.exists():
-            print(f"⚠️  Models directory not found: {models_path}")
+            print(f"⚠️  Models directory not found. Tried: {', '.join(str(p) for p in candidates)}")
             print("   Using fallback rule-based classification")
             cls.is_initialized = True
             return
