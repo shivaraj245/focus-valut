@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.api import events, query, flashcards, analytics
+from app.api.ml import router as ml_router
 from app.core.config import settings
 from app.db.database import engine, Base
 from app.services.ml_service import MLService
@@ -11,14 +12,28 @@ from app.services.vector_service import VectorService
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    
+    # PostgreSQL — optional, ML endpoints work without it
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("✅ Database connected")
+    except Exception as e:
+        print(f"⚠️  Database unavailable (ML-only mode): {e.__class__.__name__}: {e}")
+
+    # ML models — always load
     await MLService.initialize()
-    await VectorService.initialize()
-    
+
+    # Qdrant — optional, RAG endpoints need it
+    try:
+        await VectorService.initialize()
+    except Exception as e:
+        print(f"⚠️  Qdrant unavailable (RAG disabled): {e.__class__.__name__}: {e}")
+
     yield
-    
-    await VectorService.close()
+
+    try:
+        await VectorService.close()
+    except Exception:
+        pass
 
 
 app = FastAPI(
@@ -40,6 +55,7 @@ app.include_router(events.router, prefix="/api/events", tags=["Events"])
 app.include_router(query.router, prefix="/api/query", tags=["RAG Query"])
 app.include_router(flashcards.router, prefix="/api/flashcards", tags=["Flashcards"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
+app.include_router(ml_router)
 
 
 @app.get("/")
