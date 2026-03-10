@@ -40,6 +40,16 @@ export const api = {
   // RAG Query
   queryKnowledgeBase: (queryData) =>
     client.post('/query/', queryData),
+
+  // ML
+  mlStatus: () =>
+    client.get('/ml/status'),
+
+  mlClassify: (payload) =>
+    client.post('/ml/classify', payload),
+
+  mlFullPredict: (payload) =>
+    client.post('/ml/predict', payload),
   
   // Flashcards
   generateFlashcards: (userId, date = null) =>

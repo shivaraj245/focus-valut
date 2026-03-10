@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
-import Dashboard from './pages/Dashboard'
+import FocusVaultDashboard from './pages/FocusVaultDashboard'
 import Events from './pages/Events'
 import Query from './pages/Query'
 import Flashcards from './pages/Flashcards'
@@ -34,7 +34,7 @@ function App() {
 
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Routes>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/" element={<FocusVaultDashboard />} />
             <Route path="/events" element={<Events />} />
             <Route path="/query" element={<Query />} />
             <Route path="/flashcards" element={<Flashcards />} />

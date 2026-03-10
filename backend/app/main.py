@@ -15,9 +15,9 @@ async def lifespan(app: FastAPI):
     # PostgreSQL — optional, ML endpoints work without it
     try:
         Base.metadata.create_all(bind=engine)
-        print("✅ Database connected")
+        print("Database connected")
     except Exception as e:
-        print(f"⚠️  Database unavailable (ML-only mode): {e.__class__.__name__}: {e}")
+        print(f"Database unavailable (ML-only mode): {e.__class__.__name__}: {e}")
 
     # ML models — always load
     await MLService.initialize()
@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI):
     try:
         await VectorService.initialize()
     except Exception as e:
-        print(f"⚠️  Qdrant unavailable (RAG disabled): {e.__class__.__name__}: {e}")
+        print(f"Qdrant unavailable (RAG disabled): {e.__class__.__name__}: {e}")
 
     yield
 
