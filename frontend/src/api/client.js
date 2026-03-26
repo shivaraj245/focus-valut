@@ -55,6 +55,9 @@ export const api = {
   generateFlashcards: (userId, date = null) =>
     client.post('/flashcards/generate', { user_id: userId, date }),
   
+  getFlashcardsFromEvents: (userId) =>
+    client.get(`/flashcards/${userId}/from-events`),
+
   getDueFlashcards: (userId) =>
     client.get(`/flashcards/${userId}/due`),
   

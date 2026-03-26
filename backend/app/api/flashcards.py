@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from datetime import datetime, timedelta
 
 from app.db.database import get_db
@@ -12,8 +12,106 @@ from app.schemas.flashcard import (
     FlashcardGenerateRequest
 )
 from app.services.flashcard_service import FlashcardService
+from app.api.events import _memory_events, get_optional_db
 
 router = APIRouter()
+
+# ── Topic-based question templates ───────────────────────────────
+_TOPIC_QUESTIONS = {
+    "dsa": [
+        "What is the time complexity of this approach?",
+        "Can you explain the algorithm used on this page?",
+        "What data structure is most suitable for this problem?",
+    ],
+    "sql": [
+        "What SQL concept was covered on this page?",
+        "How would you optimise this query?",
+        "What is the difference between JOIN types discussed here?",
+    ],
+    "ai tools": [
+        "How can this AI tool improve your workflow?",
+        "What prompt technique was discussed here?",
+    ],
+    "career": [
+        "What career advice was shared on this page?",
+        "What skills were highlighted as important?",
+    ],
+    "web development": [
+        "What web technology was covered on this page?",
+        "How does this concept improve user experience?",
+    ],
+    "programming": [
+        "What programming concept was discussed here?",
+        "How would you apply this in a real project?",
+    ],
+}
+
+_DEFAULT_QUESTIONS = [
+    "What key concept did you learn from this page?",
+    "Summarise what this page was about in your own words.",
+    "How would you explain this topic to someone else?",
+]
+
+
+def _make_flashcards_from_events(learning_events: list) -> list:
+    """Generate flashcard dicts from learning event dicts."""
+    cards = []
+    card_id = 1
+    for evt in learning_events:
+        title = evt.get("title", "Unknown")
+        domain = evt.get("domain", "")
+        topic = evt.get("topic_name", "General Learning")
+        url = evt.get("url", "")
+
+        # Pick a topic-specific question or fall back to default
+        topic_lower = topic.lower()
+        questions = _TOPIC_QUESTIONS.get(topic_lower, _DEFAULT_QUESTIONS)
+
+        for q_template in questions[:2]:  # max 2 cards per event
+            cards.append({
+                "id": card_id,
+                "question": q_template,
+                "answer": f"{title} — {topic} (source: {domain})",
+                "topic": topic,
+                "source_url": url,
+                "domain": domain,
+                "title": title,
+            })
+            card_id += 1
+    return cards
+
+
+@router.get("/{user_id}/from-events")
+async def get_flashcards_from_events(
+    user_id: int,
+    db: Optional[Session] = Depends(get_optional_db),
+):
+    """Generate flashcards on-the-fly from in-memory learning events."""
+    if db is not None:
+        from app.db.models import BrowserEvent
+        events = db.query(BrowserEvent).filter(
+            BrowserEvent.user_id == user_id,
+            BrowserEvent.activity_label == "learning",
+        ).order_by(BrowserEvent.created_at.desc()).limit(20).all()
+        event_dicts = [
+            {
+                "title": e.title,
+                "domain": e.domain,
+                "topic_name": e.topic_name,
+                "url": e.url,
+            }
+            for e in events
+        ]
+    else:
+        event_dicts = [
+            e for e in _memory_events
+            if e.get("user_id") == user_id and e.get("activity_label") == "learning"
+        ]
+
+    if not event_dicts:
+        return []
+
+    return _make_flashcards_from_events(event_dicts)
 
 
 @router.post("/generate")

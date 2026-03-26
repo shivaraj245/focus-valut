@@ -1,7 +1,8 @@
-import google.generativeai as genai
+from google import genai
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 
 from app.core.config import settings
 from app.db.models import BrowserEvent, Flashcard
@@ -9,6 +10,67 @@ from app.schemas.flashcard import FlashcardResponse
 
 
 class FlashcardService:
+
+    @classmethod
+    def _is_flashcard_candidate(cls, event: BrowserEvent) -> bool:
+        url = (event.url or "").lower()
+        title = (event.title or "").strip()
+        domain = (event.domain or "").lower()
+
+        blocked_domain_markers = [
+            "amazonaws.com",
+            "swagger",
+        ]
+        blocked_url_markers = [
+            "x-amz-signature=",
+            "response-content-disposition=",
+            ".pdf",
+            "/home/my-courses/learning",
+            "/dashboard",
+            "/docs",
+        ]
+        blocked_title_markers = [
+            "swagger ui",
+            "learning dashboard",
+            "focusvault",
+            "my learning | udemy",
+            "opportunities | pod",
+            "pod",
+        ]
+
+        if not title or len(title) > 180:
+            return False
+        if (event.duration_seconds or 0) < 20:
+            return False
+        if any(marker in domain for marker in blocked_domain_markers):
+            return False
+        if any(marker in url for marker in blocked_url_markers):
+            return False
+        if any(marker in title.lower() for marker in blocked_title_markers):
+            return False
+        return True
+
+    @classmethod
+    def _clean_topic_name(cls, topic_name: str) -> str:
+        topic = (topic_name or "").strip()
+        if not topic or topic.lower().startswith("general learning"):
+            return "this topic"
+        return topic
+
+    @classmethod
+    def _clean_title(cls, title: str, url: str) -> str:
+        clean_title = (title or "").strip()
+        if clean_title and len(clean_title) <= 120:
+            return clean_title
+
+        parsed = urlparse(url or "")
+        fallback = parsed.path.rstrip("/").split("/")[-1].replace("-", " ").replace("_", " ").strip()
+        return fallback[:120] if fallback else "this page"
+
+    @classmethod
+    def _extract_concept(cls, title: str) -> str:
+        base = (title or "").split("|")[0].split("-")[0].strip()
+        return base if base else "this topic"
     
     @classmethod
     async def generate_daily_flashcards(
@@ -20,7 +82,7 @@ class FlashcardService:
         if date:
             target_date = datetime.fromisoformat(date)
         else:
-            target_date = datetime.utcnow() - timedelta(days=1)
+            target_date = datetime.utcnow()
         
         start_of_day = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
         end_of_day = start_of_day + timedelta(days=1)
@@ -31,6 +93,8 @@ class FlashcardService:
             BrowserEvent.created_at >= start_of_day,
             BrowserEvent.created_at < end_of_day
         ).all()
+
+        learning_events = [event for event in learning_events if cls._is_flashcard_candidate(event)]
         
         if not learning_events:
             return []
@@ -51,7 +115,7 @@ class FlashcardService:
                             answer=qa["answer"],
                             quality_score=quality_score,
                             source_url=event.url,
-                            next_review_at=datetime.utcnow() + timedelta(days=1)
+                            next_review_at=datetime.utcnow()
                         )
                         
                         db.add(flashcard)
@@ -74,8 +138,7 @@ class FlashcardService:
             return cls._generate_simple_flashcard(event)
         
         try:
-            genai.configure(api_key=settings.GEMINI_API_KEY)
-            model = genai.GenerativeModel('gemini-pro')
+            client = genai.Client(api_key=settings.GEMINI_API_KEY)
             
             prompt = f"""Generate 2 high-quality flashcards based on this learning page:
 
@@ -96,7 +159,10 @@ A1: [answer]
 Q2: [question]
 A2: [answer]"""
             
-            response = model.generate_content(prompt)
+            response = client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt
+            )
             text = response.text
             
             qa_pairs = []
@@ -120,9 +186,12 @@ A2: [answer]"""
     
     @classmethod
     def _generate_simple_flashcard(cls, event: BrowserEvent) -> List[dict]:
+        title = cls._clean_title(event.title, event.url)
+        topic = cls._clean_topic_name(event.topic_name)
+        concept = cls._extract_concept(title)
         return [{
-            "question": f"What did you learn about {event.topic_name} from {event.domain}?",
-            "answer": f"Review the page: {event.title}"
+            "question": f"What is the key idea behind {concept}?",
+            "answer": f"From your {topic} study on {event.domain}: revisit '{title}' and summarize the core concept in 2-3 points."
         }]
     
     @classmethod

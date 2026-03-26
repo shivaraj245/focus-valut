@@ -1,5 +1,5 @@
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams, PointStruct
+from qdrant_client.models import Distance, FieldCondition, Filter, MatchValue, PointStruct, Range, VectorParams
 from sentence_transformers import SentenceTransformer
 from typing import List, Dict, Any
 import uuid
@@ -11,6 +11,29 @@ class VectorService:
     client: QdrantClient = None
     encoder: SentenceTransformer = None
     is_initialized = False
+
+    @classmethod
+    def _ensure_collection(cls):
+        collections = cls.client.get_collections().collections
+        collection_names = [c.name for c in collections]
+
+        if settings.QDRANT_COLLECTION not in collection_names:
+            cls.client.create_collection(
+                collection_name=settings.QDRANT_COLLECTION,
+                vectors_config=VectorParams(
+                    size=settings.VECTOR_DIM,
+                    distance=Distance.COSINE
+                )
+            )
+            print(f"✅ Created Qdrant collection: {settings.QDRANT_COLLECTION}")
+        else:
+            print(f"✅ Qdrant collection exists: {settings.QDRANT_COLLECTION}")
+
+    @classmethod
+    def _load_encoder(cls):
+        if cls.encoder is None:
+            cls.encoder = SentenceTransformer(settings.EMBEDDING_MODEL)
+            print(f"✅ Loaded embedding model: {settings.EMBEDDING_MODEL}")
     
     @classmethod
     async def initialize(cls):
@@ -19,31 +42,28 @@ class VectorService:
                 host=settings.QDRANT_HOST,
                 port=settings.QDRANT_PORT
             )
-            
-            collections = cls.client.get_collections().collections
-            collection_names = [c.name for c in collections]
-            
-            if settings.QDRANT_COLLECTION not in collection_names:
-                cls.client.create_collection(
-                    collection_name=settings.QDRANT_COLLECTION,
-                    vectors_config=VectorParams(
-                        size=settings.VECTOR_DIM,
-                        distance=Distance.COSINE
-                    )
-                )
-                print(f"✅ Created Qdrant collection: {settings.QDRANT_COLLECTION}")
-            else:
-                print(f"✅ Qdrant collection exists: {settings.QDRANT_COLLECTION}")
-            
-            cls.encoder = SentenceTransformer(settings.EMBEDDING_MODEL)
-            print(f"✅ Loaded embedding model: {settings.EMBEDDING_MODEL}")
-            
+
+            cls._ensure_collection()
+            cls._load_encoder()
             cls.is_initialized = True
+            print("✅ Connected to remote Qdrant server")
+
+        except Exception as remote_error:
+            print(f"⚠️  Remote Qdrant initialization error: {remote_error}")
+            print("   Falling back to local embedded Qdrant storage")
+
+            try:
+                cls.client = QdrantClient(path=settings.QDRANT_LOCAL_PATH)
+                cls._ensure_collection()
+                cls._load_encoder()
+                cls.is_initialized = True
+                print(f"✅ Local Qdrant initialized at: {settings.QDRANT_LOCAL_PATH}")
+            except Exception as local_error:
+                print(f"⚠️  Local Qdrant fallback error: {local_error}")
+                print("   Vector search will be unavailable")
+                cls.is_initialized = False
             
-        except Exception as e:
-            print(f"⚠️  Qdrant initialization error: {e}")
-            print("   Vector search will be unavailable")
-            cls.is_initialized = False
+
     
     @classmethod
     async def close(cls):
@@ -117,24 +137,43 @@ class VectorService:
         query: str,
         user_id: int,
         top_k: int = 5,
-        topic_id: int = None
+        topic_id: int = None,
+        date_from: int = None,
+        date_to: int = None,
     ) -> List[Dict[str, Any]]:
         if not cls.is_initialized:
             return []
         
         try:
             query_vector = cls.encoder.encode(query, show_progress_bar=False).tolist()
-            
-            query_filter = {
-                "must": [
-                    {"key": "user_id", "match": {"value": user_id}}
-                ]
-            }
-            
-            if topic_id is not None:
-                query_filter["must"].append(
-                    {"key": "topic_id", "match": {"value": topic_id}}
+
+            must_conditions = [
+                FieldCondition(
+                    key="user_id",
+                    match=MatchValue(value=user_id)
                 )
+            ]
+
+            if topic_id is not None:
+                must_conditions.append(
+                    FieldCondition(
+                        key="topic_id",
+                        match=MatchValue(value=topic_id)
+                    )
+                )
+
+            if date_from is not None or date_to is not None:
+                must_conditions.append(
+                    FieldCondition(
+                        key="event_created_at_ts",
+                        range=Range(
+                            gte=date_from,
+                            lt=date_to,
+                        )
+                    )
+                )
+
+            query_filter = Filter(must=must_conditions)
             
             results = cls.client.search(
                 collection_name=settings.QDRANT_COLLECTION,

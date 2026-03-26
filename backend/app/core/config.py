@@ -4,10 +4,12 @@ from typing import Optional
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://focusvault:password@localhost:5432/focusvault_db"
+    SQLITE_FALLBACK_URL: str = "sqlite:///./focusvault_local.db"
     
     QDRANT_HOST: str = "localhost"
     QDRANT_PORT: int = 6333
     QDRANT_COLLECTION: str = "focusvault_chunks"
+    QDRANT_LOCAL_PATH: str = "./qdrant_local"
     
     GEMINI_API_KEY: str = ""
     

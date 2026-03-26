@@ -6,6 +6,8 @@ class RAGQueryRequest(BaseModel):
     question: str
     user_id: int
     top_k: int = 5
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
 
 
 class RAGContext(BaseModel):
